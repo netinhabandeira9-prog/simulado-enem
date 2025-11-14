@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Simulado ENEM IA - Treine com inteligência",
-  description: "Simulados, trilhas e IA para sua preparação para o ENEM. Plano gratuito e Premium disponíveis.",
+  title: "Criado com a Lasy",
+  description: "Projeto criado com Lasy AI",
 };
 
 export default function RootLayout({
