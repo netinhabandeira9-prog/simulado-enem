@@ -338,7 +338,7 @@ export default function AdminPage() {
   // FUNÇÃO ATUALIZADA: Liberação/Bloqueio Manual de Acesso Premium
   const handleLiberarAcessoManual = async (student: Student) => {
     // Verificar status atual e definir ação
-    const isPremium = student.plan === 'premium' && student.upgrade_status
+    const isPremium = student.plan === 'premium' && student.upgrade_status !== false
     const acao = isPremium ? 'bloquear' : 'liberar'
     const mensagemConfirmacao = isPremium 
       ? `Deseja realmente BLOQUEAR o acesso Premium de ${student.full_name}?`
@@ -352,21 +352,34 @@ export default function AdminPage() {
       const novosDados = isPremium 
         ? { 
             upgrade_status: false,
-            status_aluno: 'upgrade_bloqueado',
-            plan: 'gratuito'
+            status_aluno: 'upgrade_bloqueado' as const,
+            plan: 'gratuito' as const
           }
         : { 
             upgrade_status: true,
-            status_aluno: 'ativo',
-            plan: 'premium'
+            status_aluno: 'ativo' as const,
+            plan: 'premium' as const
           }
 
-      const { error } = await supabase
+      console.log('🔄 Atualizando aluno:', student.id, novosDados)
+
+      if (!supabase) {
+        alert('❌ Erro: Supabase não está configurado. Configure as variáveis de ambiente.')
+        return
+      }
+
+      const { data, error } = await supabase
         .from('profiles')
         .update(novosDados)
         .eq('id', student.id)
+        .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ Erro do Supabase:', error)
+        throw error
+      }
+
+      console.log('✅ Atualização bem-sucedida:', data)
 
       // Atualizar estado local
       setStudents(prev => prev.map(s => 
@@ -375,10 +388,13 @@ export default function AdminPage() {
           : s
       ))
 
-      alert(`Acesso Premium ${acao === 'liberar' ? 'liberado' : 'bloqueado'} manualmente com sucesso!`)
-    } catch (error) {
-      console.error('Erro ao alterar acesso manual:', error)
-      alert('Erro ao alterar acesso manual')
+      alert(`✅ Acesso Premium ${acao === 'liberar' ? 'liberado' : 'bloqueado'} manualmente com sucesso!`)
+      
+      // Recarregar lista de alunos para garantir sincronização
+      await loadStudents()
+    } catch (error: any) {
+      console.error('❌ Erro ao alterar acesso manual:', error)
+      alert(`❌ Erro ao alterar acesso manual: ${error.message || 'Erro desconhecido'}`)
     }
   }
 

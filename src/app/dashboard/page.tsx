@@ -12,7 +12,6 @@ import {
   LogOut, 
   BookOpen, 
   Play,
-  Crown,
   Trophy,
   Clock,
   Target,
@@ -109,9 +108,9 @@ export default function DashboardPage() {
     setupRealtimeListeners()
   }, [])
 
-  // Verificar progresso a cada resposta (para usuários premium)
+  // Verificar progresso a cada resposta
   useEffect(() => {
-    if (user?.plan === 'premium' && showingQuestions && selectedMateria) {
+    if (showingQuestions && selectedMateria) {
       const questoesMateria = getQuestoesMateria(selectedMateria.id)
       const totalRespondidas = Object.keys(selectedAnswers).length
       
@@ -283,13 +282,12 @@ export default function DashboardPage() {
     if (!selectedMateria) return
 
     const questoesMateria = getQuestoesMateria(selectedMateria.id)
-    const questoesDisponiveis = user?.plan === 'premium' ? questoesMateria : questoesMateria.slice(0, 2)
     
     let acertos = 0
     let erros = 0
     const erradas: string[] = []
 
-    questoesDisponiveis.forEach(questao => {
+    questoesMateria.forEach(questao => {
       const respostaUsuario = selectedAnswers[questao.id]
       if (respostaUsuario) {
         if (respostaUsuario === questao.correta) {
@@ -312,17 +310,16 @@ export default function DashboardPage() {
     // Salvar resultado no banco
     if (user && selectedMateria) {
       const questoesMateria = getQuestoesMateria(selectedMateria.id)
-      const questoesDisponiveis = user?.plan === 'premium' ? questoesMateria : questoesMateria.slice(0, 2)
       
       let acertos = 0
-      questoesDisponiveis.forEach(questao => {
+      questoesMateria.forEach(questao => {
         const respostaUsuario = selectedAnswers[questao.id]
         if (respostaUsuario === questao.correta) {
           acertos++
         }
       })
 
-      const pontuacao = Math.round((acertos / questoesDisponiveis.length) * 100)
+      const pontuacao = Math.round((acertos / questoesMateria.length) * 100)
 
       await supabase.from('resultados').insert({
         aluno_id: user.id,
@@ -356,51 +353,6 @@ export default function DashboardPage() {
         const elemento = document.getElementById(`questao-${questoesErradas[0]}`)
         elemento?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 100)
-    }
-  }
-
-  const handleUpgrade = async () => {
-    if (!user) return
-
-    try {
-      console.log('🚀 Iniciando upgrade para usuário:', user.id)
-      
-      const response = await fetch('/api/upgrade', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          email: user.email,
-        }),
-      })
-
-      console.log('📡 Status da resposta:', response.status, response.statusText)
-
-      // Verificar se a resposta é válida antes de tentar parsear JSON
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Erro na resposta:', errorText)
-        alert(`Erro ao processar upgrade: ${response.statusText}`)
-        return
-      }
-
-      const data = await response.json()
-      console.log('📦 Dados recebidos:', data)
-
-      if (data.success && data.payment_link) {
-        console.log('✅ Redirecionando para:', data.payment_link)
-        // Redirecionar para página de pagamento do Asaas
-        window.location.href = data.payment_link
-      } else {
-        const errorMessage = data.error || 'Erro ao gerar link de pagamento. Tente novamente.'
-        console.error('❌ Erro nos dados:', data)
-        alert(errorMessage)
-      }
-    } catch (error) {
-      console.error('❌ Erro ao processar upgrade:', error)
-      alert('Erro ao processar upgrade. Verifique sua conexão e tente novamente.')
     }
   }
 
@@ -439,7 +391,6 @@ export default function DashboardPage() {
   if (selectedMateria) {
     const materiaisMateria = getMateriaisMateria(selectedMateria.id)
     const questoesMateria = getQuestoesMateria(selectedMateria.id)
-    const questoesDisponiveis = user?.plan === 'premium' ? questoesMateria : questoesMateria.slice(0, 2)
 
     // Se está mostrando as questões do simulado
     if (showingQuestions) {
@@ -461,20 +412,10 @@ export default function DashboardPage() {
                   </Button>
                   <div>
                     <h1 className="text-xl font-bold text-white">Simulado - {selectedMateria.nome}</h1>
-                    <p className="text-white/80 text-sm">{questoesDisponiveis.length} questões</p>
+                    <p className="text-white/80 text-sm">{questoesMateria.length} questões</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Badge className={user?.plan === 'premium' ? 'bg-[#ECC94B] text-[#6B46C1]' : 'bg-gray-500 text-white'}>
-                    {user?.plan === 'premium' ? (
-                      <>
-                        <Crown className="h-3 w-3 mr-1" />
-                        Premium
-                      </>
-                    ) : (
-                      'Gratuito'
-                    )}
-                  </Badge>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -492,7 +433,7 @@ export default function DashboardPage() {
           {/* Questões */}
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-4xl mx-auto space-y-6">
-              {questoesDisponiveis.map((questao, index) => {
+              {questoesMateria.map((questao, index) => {
                 const isErrada = questoesErradas.includes(questao.id)
                 
                 return (
@@ -563,7 +504,7 @@ export default function DashboardPage() {
               <Card className="bg-white/95 backdrop-blur-sm">
                 <CardContent className="p-6 text-center">
                   <p className="text-gray-600 mb-4">
-                    Questões respondidas: {Object.keys(selectedAnswers).length} de {questoesDisponiveis.length}
+                    Questões respondidas: {Object.keys(selectedAnswers).length} de {questoesMateria.length}
                   </p>
                   <Button 
                     onClick={handleFinalizarSimulado}
@@ -749,16 +690,6 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <Badge className={user?.plan === 'premium' ? 'bg-[#ECC94B] text-[#6B46C1]' : 'bg-gray-500 text-white'}>
-                  {user?.plan === 'premium' ? (
-                    <>
-                      <Crown className="h-3 w-3 mr-1" />
-                      Premium
-                    </>
-                  ) : (
-                    'Gratuito'
-                  )}
-                </Badge>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -840,35 +771,23 @@ export default function DashboardPage() {
                       <span className="font-medium">Total de questões:</span>
                       <span>{questoesMateria.length}</span>
                     </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium">Disponíveis para você:</span>
-                      <span>{questoesDisponiveis.length}</span>
-                    </div>
-                    {user?.plan === 'gratuito' && questoesMateria.length > 2 && (
-                      <div className="mt-3 p-3 bg-yellow-100 rounded border-l-4 border-yellow-400">
-                        <p className="text-sm text-yellow-800">
-                          <Crown className="h-4 w-4 inline mr-1" />
-                          {questoesMateria.length - 2} questões bloqueadas. Faça upgrade para acessar todas!
-                        </p>
-                      </div>
-                    )}
                   </div>
 
                   {/* Botão para iniciar simulado */}
-                  {questoesDisponiveis.length > 0 && (
+                  {questoesMateria.length > 0 && (
                     <Button 
                       onClick={() => handleStartSimulado(selectedMateria)}
                       className="w-full bg-[#6B46C1] hover:bg-[#6B46C1]/90"
                     >
                       <Play className="h-4 w-4 mr-2" />
-                      Iniciar Simulado ({questoesDisponiveis.length} questões)
+                      Iniciar Simulado ({questoesMateria.length} questões)
                     </Button>
                   )}
 
                   {/* Preview das questões (primeiras 2) */}
                   <div className="space-y-3">
                     <h4 className="font-medium text-gray-700">Preview das questões:</h4>
-                    {questoesDisponiveis.slice(0, 2).map((questao, index) => (
+                    {questoesMateria.slice(0, 2).map((questao, index) => (
                       <div key={questao.id} className="p-3 border rounded-lg">
                         <p className="font-medium text-sm mb-2">
                           {index + 1}. {questao.pergunta.substring(0, 80)}...
@@ -894,31 +813,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Upgrade Banner para usuários gratuitos */}
-          {user?.plan === 'gratuito' && questoesMateria.length > 2 && (
-            <Card className="mt-8 bg-gradient-to-r from-[#ECC94B] to-yellow-400 border-0">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-[#6B46C1] mb-2">
-                      🚀 Desbloqueie todas as {questoesMateria.length} questões!
-                    </h3>
-                    <p className="text-[#6B46C1]/80">
-                      Acesse o simulado completo e trilhas personalizadas
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={handleUpgrade}
-                    className="bg-[#6B46C1] hover:bg-[#6B46C1]/90 text-white"
-                  >
-                    <Crown className="h-4 w-4 mr-2" />
-                    Upgrade R$ 19,90
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </main>
       </div>
     )
@@ -939,16 +833,6 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge className={user?.plan === 'premium' ? 'bg-[#ECC94B] text-[#6B46C1]' : 'bg-gray-500 text-white'}>
-                {user?.plan === 'premium' ? (
-                  <>
-                    <Crown className="h-3 w-3 mr-1" />
-                    Premium
-                  </>
-                ) : (
-                  'Gratuito'
-                )}
-              </Badge>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -971,31 +855,6 @@ export default function DashboardPage() {
           </h2>
           <p className="text-white/90">Escolha uma matéria para começar seus estudos</p>
         </div>
-
-        {/* Upgrade Banner para usuários gratuitos */}
-        {user?.plan === 'gratuito' && (
-          <Card className="mb-8 bg-gradient-to-r from-[#ECC94B] to-yellow-400 border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-[#6B46C1] mb-2">
-                    🚀 Desbloqueie todo o potencial!
-                  </h3>
-                  <p className="text-[#6B46C1]/80">
-                    Acesse todas as questões por matéria e trilhas personalizadas
-                  </p>
-                </div>
-                <Button 
-                  onClick={handleUpgrade}
-                  className="bg-[#6B46C1] hover:bg-[#6B46C1]/90 text-white"
-                >
-                  <Crown className="h-4 w-4 mr-2" />
-                  Upgrade R$ 19,90
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
@@ -1041,26 +900,22 @@ export default function DashboardPage() {
 
         {/* Matérias Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {materias.map((materia, index) => {
+          {materias.map((materia) => {
             const pontuacao = getResultadoMateria(materia.id)
             const materiaisCount = getMateriaisMateria(materia.id).length
             const questoesCount = getQuestoesMateria(materia.id).length
-            const isLocked = user?.plan === 'gratuito' && index >= 2
             
             return (
               <Card 
                 key={materia.id} 
                 className="bg-white/95 backdrop-blur-sm hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => !isLocked && setSelectedMateria(materia)}
+                onClick={() => setSelectedMateria(materia)}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-[#6B46C1] text-lg">
                       {materia.nome}
                     </CardTitle>
-                    {isLocked && (
-                      <Crown className="h-5 w-5 text-[#ECC94B]" />
-                    )}
                   </div>
                   <CardDescription className="text-sm">
                     {materia.descricao}
@@ -1093,25 +948,13 @@ export default function DashboardPage() {
                     <Button 
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (!isLocked) {
-                          setSelectedMateria(materia)
-                        }
+                        setSelectedMateria(materia)
                       }}
-                      disabled={isLocked}
-                      className={`w-full ${isLocked 
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                        : 'bg-[#6B46C1] hover:bg-[#6B46C1]/90'
-                      }`}
+                      className="w-full bg-[#6B46C1] hover:bg-[#6B46C1]/90"
                     >
                       <BookOpen className="h-4 w-4 mr-2" />
-                      {isLocked ? 'Premium Necessário' : 'Estudar Matéria'}
+                      Estudar Matéria
                     </Button>
-                    
-                    {isLocked && (
-                      <p className="text-xs text-center text-gray-500">
-                        Acesso limitado • Upgrade para acesso completo
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>
